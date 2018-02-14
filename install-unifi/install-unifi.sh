@@ -4,10 +4,10 @@
 # Installs the Uni-Fi controller software on a FreeBSD machine or FreeBSD Jail running on FreeNAS.
 
 # The latest version of UniFi:
-UNIFI_SOFTWARE_URL="https://dl.ubnt.com/unifi/5.7.15-e9b882be05/UniFi.unix.zip"
+UNIFI_SOFTWARE_URL="https://dl.ubnt.com/unifi/5.8.3-b2ba2c5d3a/UniFi.unix.zip"
 
 # The rc script associated with this branch or fork:
-RC_SCRIPT_URL="https://raw.githubusercontent.com/jmkizer/unifi-controller-freebsd-freenas/5.7.x/rc.d/unifi.sh"
+RC_SCRIPT_URL="https://raw.githubusercontent.com/jmkizer/unifi-controller-freebsd-freenas/5.8.X/rc.d/unifi.sh"
 
 # If pkg-ng is not yet installed, bootstrap it:
 if ! /usr/sbin/pkg -N 2> /dev/null; then
