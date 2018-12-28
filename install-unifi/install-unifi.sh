@@ -4,10 +4,13 @@
 # Installs the Uni-Fi controller software on a FreeBSD machine or FreeBSD Jail running on FreeNAS.
 
 # The latest version of UniFi:
-UNIFI_SOFTWARE_URL="https://dl.ubnt.com/unifi/5.8.28/UniFi.unix.zip"
+UNIFI_SOFTWARE_URL="https://dl.ubnt.com/unifi/5.9.29/UniFi.unix.zip"
 
 # The rc script associated with this branch or fork:
 RC_SCRIPT_URL="https://raw.githubusercontent.com/TechButton/unifi-controller-freebsd-freenas/master/rc.d/unifi.sh"
+
+# Local location to backup the database to:
+BACKUPFILE=/var/backups/unifi-`date +"%Y%m%d_%H%M%S"`.tgz
 
 # If pkg-ng is not yet installed, bootstrap it:
 if ! /usr/sbin/pkg -N 2> /dev/null; then
@@ -47,7 +50,6 @@ fi
 # If an installation exists, we'll need to back up configuration:
 if [ -d /usr/local/UniFi/data ]; then
   echo "Backing up UniFi data..."
-  BACKUPFILE=/var/backups/unifi-`date +"%Y%m%d_%H%M%S"`.tgz
   /usr/bin/tar -vczf ${BACKUPFILE} /usr/local/UniFi/data
 fi
 
@@ -72,7 +74,7 @@ echo " done."
 # Install mongodb, OpenJDK, and unzip (required to unpack Ubiquiti's download):
 # -F skips a package if it's already installed, without throwing an error.
 echo "Installing required packages..."
-env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg install mongodb openjdk8 unzip pcre v8 snappy
+env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg install mongodb36 openjdk8 unzip pcre v8 snappyjava
 echo " done."
 
 # Switch to a temp directory for the Unifi download:
@@ -91,16 +93,22 @@ echo " done."
 
 # Update Unifi's symbolic link for mongod to point to the version we just installed:
 echo -n "Updating mongod link..."
-/bin/ln -sf /usr/local/bin/mongod /usr/local/UniFi/bin/mongod
+# MongoDB is crashing on the "--nohttpinterface" option, so we need a wrapper script to remove it.
+# /bin/ln -sf /usr/local/bin/mongod /usr/local/UniFi/bin/mongod
+rm /usr/local/UniFi/bin/mongod
+echo '#!/bin/sh' > /usr/local/UniFi/bin/mongod
+echo 'cleaned_args=$(echo $* | sed -e 's/--nohttpinterface//')' >> /usr/local/UniFi/bin/mongod
+echo '/usr/local/bin/mongod.bin ${cleaned_args}' >> /usr/local/UniFi/bin/mongod
+chmod +x /usr/local/UniFi/bin/mongod
 echo " done."
 
 # Fetch the rc script from github:
 echo -n "Installing rc script..."
-/usr/bin/fetch -o /usr/local/etc/rc.d/unifi.sh ${RC_SCRIPT_URL}
+/usr/bin/fetch -o /usr/local/etc/rc.d/unifi ${RC_SCRIPT_URL}
 echo " done."
 
 # Fix permissions so it'll run
-chmod +x /usr/local/etc/rc.d/unifi.sh
+chmod +x /usr/local/etc/rc.d/unifi
 
 # Add the startup variable to rc.conf.local.
 # Eventually, this step will need to be folded into pfSense, which manages the main rc.conf.
@@ -118,12 +126,12 @@ if [ ! -z "${BACKUPFILE}" ] && [ -f ${BACKUPFILE} ]; then
   /usr/bin/tar -vxzf ${BACKUPFILE} -C /
 fi
 #TODO - *Need to verify the current version of snappyjava*
-echo "Install snappy java" 
-env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg install snappyjava
-/bin/mv /usr/local/UniFi/lib/snappy-java-1.1.2.6.jar  snappy-java-1.1.2.6.jar.bak
-/bin/ln -s /usr/local/share/java/classes/snappy-java.jar  /usr/local/UniFi/lib/snappy-java-1.1.2.6.jar
+# echo "Install snappy java" 
+# env ASSUME_ALWAYS_YES=YES /usr/sbin/pkg install snappyjava
+/bin/mv /usr/local/UniFi/lib/snappy-java-1.1.4.jar  snappy-java-1.1.4.jar.bak
+/bin/ln -s /usr/local/share/java/classes/snappy-java.jar  /usr/local/UniFi/lib/snappy-java-1.1.4.jar
 
 # Start it up:
 echo -n "Starting the unifi service..."
-/usr/sbin/service unifi.sh start
+/usr/sbin/service unifi start
 echo " done."
